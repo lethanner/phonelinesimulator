@@ -17,4 +17,4 @@
 #define LINE2_RING 5
 #define LINE_CONNECT 6
 
-#define OFF_HOOK_ADC 900
+#define OFF_HOOK_ADC 750

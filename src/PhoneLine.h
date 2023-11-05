@@ -74,28 +74,28 @@ void PhoneLine::serve()
     {
         switch (*_isLineBusy)
         {
-            case 0: // линия полностью свободна?
-            {
-                _monitor->println(F("OFF-HOOK"));
-                delay(200);
-                enteredNumPos = pulseDigit = lineStatus = 0;
-                waitForDialTimer = millis();
-                memset(enteredNumber, 0, NUM_LENGTH);
-                tone(_signalPin, LINE_READY_OR_BUSY);
-                break;
-            }
-            case 1:
-            {
-                lineStatus = 2; // сигнал "линия занята"
-                _monitor->println(F("LINEBUSY"));
-                break;
-            }
-            case 2: // если на линию поступает звонок
-            {
-                lineStatus = 6;
-                _monitor->println(F("ANSWER"));
-                break;
-            }
+        case 0: // линия полностью свободна?
+        {
+            _monitor->println(F("OFF-HOOK"));
+            delay(200);
+            enteredNumPos = pulseDigit = lineStatus = 0;
+            waitForDialTimer = millis();
+            memset(enteredNumber, 0, NUM_LENGTH);
+            tone(_signalPin, LINE_READY_OR_BUSY);
+            break;
+        }
+        case 1:
+        {
+            lineStatus = 2; // сигнал "линия занята"
+            _monitor->println(F("LINEBUSY"));
+            break;
+        }
+        case 2: // если на линию поступает звонок
+        {
+            lineStatus = 6;
+            _monitor->println(F("ANSWER"));
+            break;
+        }
         }
         offHook = true;
     }
@@ -105,28 +105,29 @@ void PhoneLine::serve()
     {
         if (probe >= OFF_HOOK_ADC) // обработка размыканий (импульсный набор и опускание трубки)
         {
-            if (!pulseState && lineStatus == 0)
+            // если линия ещё не была разомкнута
+            if (!pulseState)
             {
                 noTone(_signalPin);                         // гудок станции пропадает сразу после начала набора номера или опускания трубки
                 digitTimeout = waitForDialTimer = millis(); // сброс таймаутов ожидания начала набора номера и ввода цифры импульсным набором
-                pulseDigit++;
                 pulseState = true;
             }
-
-            // если линия оказывается разомкнутой более чем на 100 мс, трубка считается положенной
-            // или если статус линии отличен от "набор номера", то при размыкании линии вешаем трубку сразу
-            if ((pulseState && millis() - pulseTimeout > 100) || lineStatus > 0)
+            else if (pulseState && millis() - pulseTimeout > 100) // если линия разомкнута уже более, чем на 100 мс
             {
-                noTone(_signalPin);
-                digitalWrite(_ringPin, false);
-                offHook = pulseState = false;
-                lineStatus = 0;
-                waitForDialTimer = millis(); // это костыль, чтобы не срабатывал кусок кода с запуском варнинга ниже
+                digitalWrite(_ringPin, false); // выкл реле звонка
+                offHook = pulseState = false;  // флаг о том, что трубку положили
+                lineStatus = 0;                // сброс состояния линии
+
                 _monitor->println(F("HANG-UP"));
             }
+            // теперь ожидание в 100 мс будет для всех состояний линии. Иначе малейшие размыкания линии 
+            // (из-за какого нибудь дребезга контактов) приводили к сбросу активного соединения
         }
         else // если линия не разомкнута
         {
+            if (pulseState && lineStatus == 0) // если недлительное размыкание было и состояние линии = "набор номера"
+                pulseDigit++; // добавляем + к количеству размыканий, что соответствует набранной цифре
+
             pulseTimeout = millis();
             pulseState = false;
 
@@ -170,7 +171,7 @@ void PhoneLine::serve()
                 digitalWrite(_ringPin, false);
                 _monitor->println(F("ONLINE"));
             }
-            
+
             if (millis() - signalTimer >= signalTiming)
             {
                 if (lineStatus == 1) // посылка вызова
@@ -191,7 +192,7 @@ void PhoneLine::serve()
                         toneSignalId = 0;
 
                         if (millis() - waitForAnswerTimer > ANSWER_WAIT_MS) // когда нет ответа больше N секунд
-                            lineStatus = 3;                                      // сигнал "занято"
+                            lineStatus = 3;                                 // сигнал "занято"
                     }
                 }
                 else if (lineStatus == 2 || lineStatus == 3) // сигналы "линия занята" и "занято"
