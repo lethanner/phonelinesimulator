@@ -138,7 +138,7 @@ void PhoneLine::serve()
                     enteredNumber[enteredNumPos++] = pulseDigit;
 
                 // по окончании введения номера...
-                if (_numberToCall[enteredNumPos] == 0xFF || enteredNumPos > NUM_LENGTH)
+                if (_numberToCall[enteredNumPos] == 0xFF || enteredNumPos >= NUM_LENGTH)
                 {
                     lineStatus = (*_isLineBusy ? 3 : 1);     // линия всё ещё свободна? если нет, то извините, "занято".
                     for (byte i = 0; i < enteredNumPos; i++) // а номер правильно введён?
